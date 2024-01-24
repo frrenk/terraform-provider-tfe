@@ -8,6 +8,8 @@ FEATURES:
 * **New Data Source**: `d/tfe_registry_providers` is a new data source to retrieve information about public and private providers in the private registry, by @tmatilai [1185](https://github.com/hashicorp/terraform-provider-tfe/pull/1185)
 * **New Resource**: `r/tfe_sentinel_version` adds the ability for admins to configure settings for sentinel versions ([#1202](https://github.com/hashicorp/terraform-provider-tfe/pull/1202))
 * **New Resource**: `r/tfe_opa_version` adds the ability for admins to configure settings for OPA versions ([#1202](https://github.com/hashicorp/terraform-provider-tfe/pull/1202))
+* `r/tfe_organization`: Add `aggregated_commit_status_enabled` attribute, by @mjyocca [1169](https://github.com/hashicorp/terraform-provider-tfe/pull/1169)
+* `d/tfe_organization`: Add `aggregated_commit_status_enabled` attribute, by @mjyocca [1169](https://github.com/hashicorp/terraform-provider-tfe/pull/1169)
 
 BUG FIXES:
 
