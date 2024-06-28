@@ -11,7 +11,7 @@ description: |-
 
 Use this data source to get information about a workspace.
 
-~> **NOTE:** Using `globalRemoteState` or `remoteStateConsumerIds` requires using the provider with Terraform Cloud or an instance of Terraform Enterprise at least as recent as v202104-1.
+~> **NOTE:** Using `globalRemoteState` or `remoteStateConsumerIds` requires using the provider with HCP Terraform or an instance of Terraform Enterprise at least as recent as v202104-1.
 
 ## Example Usage
 
@@ -47,7 +47,8 @@ In addition to all arguments above, the following attributes are exported:
 * `allowDestroyPlan` - Indicates whether destroy plans can be queued on the workspace.
 * `autoApply` - Indicates whether to automatically apply changes when a Terraform plan is successful.
 * `autoApplyRunTrigger` - Whether the workspace will automatically apply changes for runs that were created by run triggers from another workspace.
-* `assessmentsEnabled` - (Available only in Terraform Cloud) Indicates whether health assessments such as drift detection are enabled for the workspace.
+* `autoDestroyAt` - Future date/time string at which point all resources in a workspace will be scheduled to be deleted.
+* `assessmentsEnabled` - (Available only in HCP Terraform) Indicates whether health assessments such as drift detection are enabled for the workspace.
 * `fileTriggersEnabled` - Indicates whether runs are triggered based on the changed files in a VCS push (if `true`) or always triggered on every push (if `false`).
 * `globalRemoteState` - (Optional) Whether the workspace should allow all workspaces in the organization to access its state data during runs. If false, then only specifically approved workspaces can access its state (determined by the `remoteStateConsumerIds` argument).
 * `remoteStateConsumerIds` - (Optional) A set of workspace IDs that will be set as the remote state consumers for the given workspace. Cannot be used if `globalRemoteState` is set to `true`.
@@ -67,12 +68,12 @@ In addition to all arguments above, the following attributes are exported:
 * `structuredRunOutputEnabled` - Indicates whether runs in this workspace use the enhanced apply UI.
 * `tagNames` - The names of tags added to this workspace.
 * `terraformVersion` - The version (or version constraint) of Terraform used for this workspace.
-* `triggerPrefixes` - List of trigger prefixes that describe the paths Terraform Cloud monitors for changes, in addition to the working directory. Trigger prefixes are always appended to the root directory of the repository.
-  Terraform Cloud or Terraform Enterprise will start a run when files are changed in any directory path matching the provided set of prefixes.
-* `triggerPatterns` - List of [glob patterns](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/settings/vcs#glob-patterns-for-automatic-run-triggering) that describe the files Terraform Cloud monitors for changes. Trigger patterns are always appended to the root directory of the repository.
+* `triggerPrefixes` - List of trigger prefixes that describe the paths HCP Terraform monitors for changes, in addition to the working directory. Trigger prefixes are always appended to the root directory of the repository.
+  HCP Terraform or Terraform Enterprise will start a run when files are changed in any directory path matching the provided set of prefixes.
+* `triggerPatterns` - List of [glob patterns](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/settings/vcs#glob-patterns-for-automatic-run-triggering) that describe the files HCP Terraform monitors for changes. Trigger patterns are always appended to the root directory of the repository.
 * `vcsRepo` - Settings for the workspace's VCS repository.
 * `workingDirectory` - A relative path that Terraform will execute within.
-* `executionMode` - Indicates the [execution mode](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/settings#execution-mode) of the workspace. Possible values include `remote`, `local`, or `agent`.
+* `executionMode` - Indicates the [execution mode](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/settings#execution-mode) of the workspace. **Note:** This value might be derived from an organization-level default or set on the workspace itself; see the [`tfeWorkspaceSettings` resource](tfe_workspace_settings) for details.
 * `htmlUrl` - The URL to the browsable HTML overview of the workspace
 
 
@@ -87,4 +88,4 @@ The `vcsRepo` block contains:
 * `oauthTokenId` - OAuth token ID of the configured VCS connection.
 * `tagsRegex` - A regular expression used to trigger a Workspace run for matching Git tags.
 
-<!-- cache-key: cdktf-0.17.0-pre.15 input-82f43ee78054a4a88c04b2768dd5c3b6ba74cdac1de55fecef133b85fe5aee8a -->
+<!-- cache-key: cdktf-0.17.0-pre.15 input-7500b2311f3804feb075f040e60989aa8e4fc69cc4ef327b51b7e3ab1f599d6d -->

@@ -11,7 +11,7 @@ Provides a workspace resource.
 
 ~> **NOTE:** Setting the execution mode and agent pool affinity directly on the workspace is deprecated in favor of using both [tfe_workspace_settings](workspace_settings) and [tfe_organization_default_settings](organization_default_settings), since they allow more precise control and fully support [agent_pool_allowed_workspaces](agent_pool_allowed_workspaces). Use caution when unsetting `execution_mode`, as it now leaves any prior value unmanaged instead of reverting to the old default value of `"remote"`.
 
-~> **NOTE:** Using `global_remote_state` or `remote_state_consumer_ids` requires using the provider with Terraform Cloud or an instance of Terraform Enterprise at least as recent as v202104-1.
+~> **NOTE:** Using `global_remote_state` or `remote_state_consumer_ids` requires using the provider with HCP Terraform or an instance of Terraform Enterprise at least as recent as v202104-1.
 
 ## Example Usage
 
@@ -68,6 +68,11 @@ The following arguments are supported:
 * `assessments_enabled` - (Optional) Whether to regularly run health assessments such as drift detection on the workspace. Defaults to `false`.
 * `auto_apply` - (Optional) Whether to automatically apply changes when a Terraform plan is successful. Defaults to `false`.
 * `auto_apply_run_trigger` - (Optional) Whether to automatically apply changes for runs that were created by run triggers from another workspace. Defaults to `false`.
+* `auto_destroy_activity_duration` - (Optional) A duration string of the period of time after workspace activity to automatically schedule an auto-destroy run. Must be of the form `<number><unit>` where allowed unit values are "d" and "h". Conflicts with `auto_destroy_at`.
+* `auto_destroy_at` - (Optional) A future date/time string at which point all resources in a workspace will be scheduled for deletion. Must be a string in RFC3339 format (e.g. "2100-01-01T00:00:00Z"). Conflicts with `auto_destroy_activity_duration`.
+
+~> **NOTE:** `auto_destroy_at` is not intended for workspaces containing production resources or long-lived workspaces. Since this attribute is in-part managed by HCP Terraform, using `ignore_changes` for this attribute may be preferred.
+
 * `description` - (Optional) A description for the workspace.
 * `execution_mode` - (Optional) **Deprecated** Which [execution mode](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/settings#execution-mode) to use. Use [tfe_workspace_settings](workspace_settings) instead.
 * `file_triggers_enabled` - (Optional) Whether to filter runs based on the changed files
@@ -86,7 +91,7 @@ The following arguments are supported:
   automatically performing runs immediately after its creation. Defaults to
   `true`. When set to `false`, runs triggered by a webhook (such as a commit
   in VCS) will not be queued until at least one run has been manually queued.
-  **Note:** This default differs from the Terraform Cloud API default, which
+  **Note:** This default differs from the HCP Terraform API default, which
   is `false`. The provider uses `true` as any workspace provisioned with
   `false` would need to then have a run manually queued out-of-band before
   accepting webhooks.
@@ -103,7 +108,7 @@ The following arguments are supported:
    workspace has been created, so modifying this value will result in the
    workspace being replaced. To disable this, use an [ignore changes](https://developer.hashicorp.com/terraform/language/meta-arguments/lifecycle#ignore_changes) lifecycle meta-argument
 * `speculative_enabled` - (Optional) Whether this workspace allows speculative
-  plans. Defaults to `true`. Setting this to `false` prevents Terraform Cloud
+  plans. Defaults to `true`. Setting this to `false` prevents HCP Terraform
   or the Terraform Enterprise instance from running plans on pull requests,
   which can improve security if the VCS repository is public or includes
   untrusted contributors.
@@ -113,13 +118,18 @@ The following arguments are supported:
   workspace will display their output as text logs.
 * `ssh_key_id` - (Optional) The ID of an SSH key to assign to the workspace.
 * `tag_names` - (Optional) A list of tag names for this workspace. Note that tags must only contain lowercase letters, numbers, colons, or hyphens.
+* `ignore_additional_tag_names` - (Optional) Explicitly ignores `tag_names`
+_not_ defined by config so they will not be overwritten by the configured
+tags. This creates exceptional behavior in terraform with respect
+to `tag_names` and is not recommended. This value must be applied before it
+will be used.
 * `terraform_version` - (Optional) The version of Terraform to use for this
   workspace. This can be either an exact version or a
   [version constraint](https://developer.hashicorp.com/terraform/language/expressions/version-constraints)
   (like `~> 1.0.0`); if you specify a constraint, the workspace will always use
   the newest release that meets that constraint. Defaults to the latest
   available version.
-* `trigger_patterns` - (Optional) List of [glob patterns](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/settings/vcs#glob-patterns-for-automatic-run-triggering) that describe the files Terraform Cloud monitors for changes. Trigger patterns are always appended to the root directory of the repository. Mutually exclusive with `trigger-prefixes`.
+* `trigger_patterns` - (Optional) List of [glob patterns](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/settings/vcs#glob-patterns-for-automatic-run-triggering) that describe the files HCP Terraform monitors for changes. Trigger patterns are always appended to the root directory of the repository. Mutually exclusive with `trigger-prefixes`.
 * `trigger_prefixes` - (Optional) List of repository-root-relative paths which describe all locations
   to be tracked for changes.
 * `vcs_repo` - (Optional) Settings for the workspace's VCS repository, enabling the [UI/VCS-driven run workflow](https://developer.hashicorp.com/terraform/cloud-docs/run/ui).

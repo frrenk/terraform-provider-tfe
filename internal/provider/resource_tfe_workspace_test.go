@@ -1226,6 +1226,10 @@ func TestAccTFEWorkspace_patternsAndPrefixesConflicting(t *testing.T) {
 func TestAccTFEWorkspace_changeTags(t *testing.T) {
 	workspace := &tfe.Workspace{}
 	rInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int()
+	tfeClient, err := getClientUsingEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -1338,6 +1342,44 @@ func TestAccTFEWorkspace_changeTags(t *testing.T) {
 				// bad tags
 				Config:      testAccTFEWorkspace_basicBadTag(rInt),
 				ExpectError: regexp.MustCompile(`"-Hello" is not a valid tag name.`),
+			},
+			{
+				Config: testAccTFEWorkspace_ignoreAdditional(rInt),
+			},
+			{
+				PreConfig: func() {
+					newTags := tfe.WorkspaceAddTagsOptions{Tags: []*tfe.Tag{{Name: "unmanaged"}}}
+					err := tfeClient.Workspaces.AddTags(context.Background(), workspace.ID, newTags)
+					if err != nil {
+						t.Fatal(err)
+					}
+				},
+				Config: testAccTFEWorkspace_ignoreAdditional(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckTFEWorkspaceExists(
+						"tfe_workspace.foobar", workspace, testAccProvider),
+					resource.TestCheckResourceAttr(
+						"tfe_workspace.foobar", "tag_names.#", "2"),
+					resource.TestCheckTypeSetElemAttr(
+						"tfe_workspace.foobar", "tag_names.*", "foo"),
+					resource.TestCheckTypeSetElemAttr(
+						"tfe_workspace.foobar", "tag_names.*", "bar"),
+					func(state *terraform.State) error {
+						r, err := tfeClient.Workspaces.ListTags(context.Background(), workspace.ID, &tfe.WorkspaceTagListOptions{})
+						if err != nil {
+							return err
+						}
+						if len(r.Items) != 3 {
+							return fmt.Errorf("expected 3 tags, got %d", len(r.Items))
+						}
+						for _, tag := range r.Items {
+							if tag.Name == "unmanaged" {
+								return nil
+							}
+						}
+						return fmt.Errorf("unmanaged tag not found on workspace")
+					},
+				),
 			},
 		},
 	})
@@ -2245,7 +2287,7 @@ func testAccCheckTFEWorkspacePanic(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		config := testAccProvider.Meta().(ConfiguredClient)
 
-		// Grab the resource out of the state and delete it from TFC/E directly.
+		// Grab the resource out of the state and delete it from HCP Terraform and Terraform Enterprise directly.
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
 			return fmt.Errorf("Not found: %s", n)
@@ -2606,6 +2648,128 @@ func TestAccTFEWorkspace_basicAssessmentsEnabled(t *testing.T) {
 	})
 }
 
+func TestAccTFEWorkspace_createWithAutoDestroyAt(t *testing.T) {
+	rInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckTFEWorkspaceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccTFEWorkspace_basicWithAutoDestroyAt(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckTFEWorkspaceExists("tfe_workspace.foobar", &tfe.Workspace{}, testAccProvider),
+					resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_at", "2100-01-01T00:00:00Z"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccTFEWorkspace_updateWithAutoDestroyAt(t *testing.T) {
+	rInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckTFEWorkspaceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccTFEWorkspace_basic(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckTFEWorkspaceExists("tfe_workspace.foobar", &tfe.Workspace{}, testAccProvider),
+					resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_at", ""),
+				),
+			},
+			{
+				Config: testAccTFEWorkspace_basicWithAutoDestroyAt(rInt),
+				Check:  resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_at", "2100-01-01T00:00:00Z"),
+			},
+			{
+				Config: testAccTFEWorkspace_basic(rInt),
+				Check:  resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_at", ""),
+			},
+		},
+	})
+}
+
+func TestAccTFEWorkspace_createWithAutoDestroyDuration(t *testing.T) {
+	rInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckTFEWorkspaceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccTFEWorkspace_basicWithAutoDestroyDuration(rInt, "1d"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckTFEWorkspaceExists("tfe_workspace.foobar", &tfe.Workspace{}, testAccProvider),
+					resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_activity_duration", "1d"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccTFEWorkspace_updateWithAutoDestroyDuration(t *testing.T) {
+	rInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckTFEWorkspaceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccTFEWorkspace_basicWithAutoDestroyDuration(rInt, "1d"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckTFEWorkspaceExists("tfe_workspace.foobar", &tfe.Workspace{}, testAccProvider),
+					resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_activity_duration", "1d"),
+				),
+			},
+			{
+				Config: testAccTFEWorkspace_basicWithAutoDestroyAt(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_activity_duration", ""),
+					resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_at", "2100-01-01T00:00:00Z"),
+				),
+			},
+			{
+				Config: testAccTFEWorkspace_basicWithAutoDestroyDuration(rInt, "1d"),
+				Check:  resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_activity_duration", "1d"),
+			},
+			{
+				Config: testAccTFEWorkspace_basic(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_at", ""),
+					resource.TestCheckResourceAttr("tfe_workspace.foobar", "auto_destroy_activity_duration", ""),
+				),
+			},
+		},
+	})
+}
+
+func TestAccTFEWorkspace_validationAutoDestroyDuration(t *testing.T) {
+	rInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int()
+
+	values := []string{"d", "1w", "1d1", "123456h"}
+	steps := []resource.TestStep{}
+	for _, value := range values {
+		steps = append(steps, resource.TestStep{
+			Config:      testAccTFEWorkspace_basicWithAutoDestroyDuration(rInt, value),
+			ExpectError: regexp.MustCompile("must be 1-4 digits followed by d or h"),
+		})
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckTFEWorkspaceDestroy,
+		Steps:        steps,
+	})
+}
+
 func TestAccTFEWorkspace_createWithSourceURL(t *testing.T) {
 	rInt := rand.New(rand.NewSource(time.Now().UnixNano())).Int()
 
@@ -2781,6 +2945,21 @@ resource "tfe_workspace" "foobar" {
 }`, rInt)
 }
 
+func testAccTFEWorkspace_ignoreAdditional(rInt int) string {
+	return fmt.Sprintf(`
+resource "tfe_organization" "foobar" {
+  name  = "tst-terraform-%d"
+  email = "admin@company.com"
+}
+resource "tfe_workspace" "foobar" {
+  name                        = "workspace-test"
+  organization                = tfe_organization.foobar.id
+  auto_apply                  = true
+  tag_names                   = ["foo", "bar"]
+  ignore_additional_tag_names = true
+}`, rInt)
+}
+
 func testAccTFEWorkspace_basicBadTag(rInt int) string {
 	return fmt.Sprintf(`
 resource "tfe_organization" "foobar" {
@@ -2865,6 +3044,38 @@ resource "tfe_workspace" "foobar" {
   tag_names          = ["fav", "test"]
   force_delete       = true
 }`, rInt)
+}
+
+func testAccTFEWorkspace_basicWithAutoDestroyAt(rInt int) string {
+	return fmt.Sprintf(`
+resource "tfe_organization" "foobar" {
+  name  = "tst-terraform-%d"
+  email = "admin@company.com"
+}
+
+resource "tfe_workspace" "foobar" {
+  name                 = "workspace-test"
+  organization         = tfe_organization.foobar.id
+  auto_apply           = true
+  file_triggers_enabled = false
+  auto_destroy_at      = "2100-01-01T00:00:00Z"
+}`, rInt)
+}
+
+func testAccTFEWorkspace_basicWithAutoDestroyDuration(rInt int, value string) string {
+	return fmt.Sprintf(`
+resource "tfe_organization" "foobar" {
+  name  = "tst-terraform-%d"
+  email = "admin@company.com"
+}
+
+resource "tfe_workspace" "foobar" {
+  name                           = "workspace-test"
+  organization                   = tfe_organization.foobar.id
+  auto_apply                     = true
+  file_triggers_enabled           = false
+  auto_destroy_activity_duration = "%s"
+}`, rInt, value)
 }
 
 func testAccTFEWorkspace_operationsTrue(organization string) string {

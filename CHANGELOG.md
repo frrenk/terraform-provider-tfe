@@ -1,13 +1,87 @@
-## UNRELEASED
-<!-- Add CHANGELOG entry to this section for any PR awaiting the next release -->
-<!-- Please also include if this is a Bug Fix, Enhancement, or Feature -->
+## Unreleased
+
+FEATURES:
+* `r/tfe_team`: Add attribute `manage_agent_pools` to `organization_access` on `tfe_team` by @emlanctot [#1358](https://github.com/hashicorp/terraform-provider-tfe/pull/1358)
+* `r/tfe_workspace`: Add an `auto_destroy_activity_duration` attribute for automatic scheduling of auto-destroy runs based off of workspace activity, by @notchairmk [#1377](https://github.com/hashicorp/terraform-provider-tfe/pull/1377)
+* `d/tfe_workspace`: Add an `auto_destroy_activity_duration`, by @notchairmk [#1377](https://github.com/hashicorp/terraform-provider-tfe/pull/1377)
+* `d/tfe_organization_run_task_global_settings`: Add a datasource to retrieve the global settings of Run tasks, by @glennsarti [#1328](https://github.com/hashicorp/terraform-provider-tfe/pull/1330)
+* `r/tfe_organization_run_task_global_settings`: Add a resource to manage the global settings of Run tasks, by @glennsarti [#1328](https://github.com/hashicorp/terraform-provider-tfe/pull/1330)
+
+DEPRECATIONS and BREAKING CHANGES:
+* `r/_workspace_run_task`: The `stage` attribute has been deprecated in favor of the `stages` attribute, by @glennsarti [#1328](https://github.com/hashicorp/terraform-provider-tfe/pull/1330)
+* `d/_workspace_run_task`: The `stage` attribute has been deprecated in favor of the `stages` attribute, by @glennsarti [#1328](https://github.com/hashicorp/terraform-provider-tfe/pull/1330)
+
+## v0.56.0
+
+ENHANCEMENTS:
+* `r/tfe_oauth_client`: Add Bitbucket Data Center support with the `bitbucket_data_center` option for `service_provider` by @zainq11 [#1303](https://github.com/hashicorp/terraform-provider-tfe/pull/1304)
+* `r/tfe_workspace`: Add an `auto_destroy_at` attribute for scheduling an auto-destroy run in the future, by @notchairmk [1354](https://github.com/hashicorp/terraform-provider-tfe/pull/1354)
+* `d/tfe_workspace`: Add an `auto_destroy_at` attribute for reading a scheduled auto-destroy, by @notchairmk [1354](https://github.com/hashicorp/terraform-provider-tfe/pull/1354)
+* `r/tfe_registry_module`: Add `initial_version` support for Branch Based Modules by @aaabdelgany [#1363](https://github.com/hashicorp/terraform-provider-tfe/pull/1363)
+* `r/tfe_oauth_client`: Add `agent_pool_id` as an optional argument to enable Private VCS support, by @roleesinhaHC [1255](https://github.com/hashicorp/terraform-provider-tfe/pull/1255)
+* `r/tfe_project`: Increase the Project name length from 36 to 40 characters @hs26gill [#1351](https://github.com/hashicorp/terraform-provider-tfe/pull/1351)
+
+FEATURES:
+* **New Resource**: `r/tfe_data_retention_policy` is a new resource for managing data retention policies for organizations and workspaces, by @SwiftEngineer [1385](https://github.com/hashicorp/terraform-provider-tfe/pull/1385)
+
+BUG FIXES:
+* `r/tfe_registry_module`: Prevents constant diff after a successful apply when `tags` and `tests_enabled` is not set by @Uk1288 [#1357](https://github.com/hashicorp/terraform-provider-tfe/pull/1357)
+
+## v0.55.0
+
+FEATURES:
+* `r/tfe_team`: Add attributes `manage_teams`, `manage_organization_access`, and `access_secret_teams` to `organization_access` on `tfe_team` by @juliannatetreault [#1313](https://github.com/hashicorp/terraform-provider-tfe/pull/1313)
+
+NOTES:
+* This release's changes have been edited for correctness. [#1351](https://github.com/hashicorp/terraform-provider-tfe/pull/1351) (`r/tfe_project`: Increase the Project name length from 36 to 40 characters) was erroneously reported as included in the v0.55.0 release. Those changes have been included in v0.56.0.
+
+## v0.54.0
+
+ENHANCEMENTS:
+* Rebrand Terraform Cloud to HCP Terraform by @sebasslash [#1328](https://github.com/hashicorp/terraform-provider-tfe/pull/1328)
+* Adds `post_apply` to list of possible `stages` for Run Tasks by @carolinaborim [#1307](https://github.com/hashicorp/terraform-provider-tfe/pull/1307)
+
+FEATURES:
+* `d/tfe_oauth_client`: Add `project_ids` attribute, by @Netra2104 [1148](https://github.com/hashicorp/terraform-provider-tfe/pull/1148)
+* `d/tfe_oauth_client`: Add `organization_scoped` attribute, by @Netra2104 [1148](https://github.com/hashicorp/terraform-provider-tfe/pull/1148)
+* **New Resource**: `r/tfe_project_oauth_client` attaches/detaches an existing `project` to an existing `oauth client`, by @Netra2104 [1144](https://github.com/hashicorp/terraform-provider-tfe/pull/1144)
+* **New Resource**: `r/tfe_test_variable` is a new resource for creating environment variables used by registry modules for terraform test, by @aaabdelgany [1285](https://github.com/hashicorp/terraform-provider-tfe/pull/1285)
+
+BUG FIXES:
+* `r/tfe_organization_default_settings`: Fix import resource address documentation by @Uk1288 [#1324](https://github.com/hashicorp/terraform-provider-tfe/pull/1324)
+
+## v0.53.0
+
+ENHANCEMENTS:
+* `r/tfe_project`: Add `description` attribute, by @netramali [1271](https://github.com/hashicorp/terraform-provider-tfe/pull/1271)
+* `d/tfe_project`: Add `description` attribute, by @netramali [1271](https://github.com/hashicorp/terraform-provider-tfe/pull/1271)
+
+FEATURES:
+* `r/tfe_workspace`: Add `ignore_additional_tag_names` which explicitly ignores `tag_names` _not_ defined by config so they will not be overwritten by the configured tags, by @brandonc and @mbillow [1254](https://github.com/hashicorp/terraform-provider-tfe/pull/1254)
+* `r/tfe_oauth_client`: Add `organization_scoped` attribute, by @Netra2104 [1142](https://github.com/hashicorp/terraform-provider-tfe/pull/1142)
+
+BUG FIXES:
+
+* `r/tfe_registry_module`: Fix registry module always triggering re-creation when an organization is not present, by @hashimoon [1263](https://github.com/hashicorp/terraform-provider-tfe/pull/1263)
+* `r/tfe_workspace`: Change the error message returned when a workspace cannot be safe-deleted to reflect that the error can happen when the latest state is still being processed @uturunku1 [1274](https://github.com/hashicorp/terraform-provider-tfe/pull/1274)
+
+
+ENHANCEMENTS:
+* `r/tfe_registry_module`: Update `Delete` method to call `DeleteByName` when `module_provider` is not present, and `DeleteProvider` when `module_provider` exists @laurenolivia[1267](https://github.com/hashicorp/terraform-provider-tfe/pull/1267)
+
+## v0.52.0
 
 FEATURES:
 * **New Resource**: `r/tfe_registry_provider` is a new resource for managing public and private providers in the private registry, by @tmatilai [1185](https://github.com/hashicorp/terraform-provider-tfe/pull/1185)
 * **New Data Source**: `d/tfe_registry_provider` is a new data source to retrieve information about a public or private provider in the private registry, by @tmatilai [1185](https://github.com/hashicorp/terraform-provider-tfe/pull/1185)
 * **New Data Source**: `d/tfe_registry_providers` is a new data source to retrieve information about public and private providers in the private registry, by @tmatilai [1185](https://github.com/hashicorp/terraform-provider-tfe/pull/1185)
-* **New Resource**: `r/tfe_sentinel_version` adds the ability for admins to configure settings for sentinel versions ([#1202](https://github.com/hashicorp/terraform-provider-tfe/pull/1202))
-* **New Resource**: `r/tfe_opa_version` adds the ability for admins to configure settings for OPA versions ([#1202](https://github.com/hashicorp/terraform-provider-tfe/pull/1202))
+* **New Data Source**: `d/tfe_no_code_module` is a new data source to retrieve information about a no-code module, by @catsby [1242](https://github.com/hashicorp/terraform-provider-tfe/pull/1242)
+* **New Resource**: `r/tfe_sentinel_version` adds the ability for Terraform Enterprise admins to configure settings for sentinel versions ([#1202](https://github.com/hashicorp/terraform-provider-tfe/pull/1202))
+* **New Resource**: `r/tfe_opa_version` adds the ability for Terraform Enterprise admins to configure settings for OPA versions ([#1202](https://github.com/hashicorp/terraform-provider-tfe/pull/1202))
+* `r/tfe_policy_set`: Add `agent_enabled` and `policy_tool_version` attributes to allow setting a policy runtime version to the policy set, by @mrinalirao [1234](https://github.com/hashicorp/terraform-provider-tfe/pull/1234)
+* `d/tfe_policy_set`: Add `agent_enabled` and `policy_tool_version` attributes to get the policy runtime version of a policy set, by @mrinalirao [1234](https://github.com/hashicorp/terraform-provider-tfe/pull/1234)
+* `r/tfe_organization`: Add `aggregated_commit_status_enabled` attribute, by @mjyocca [1169](https://github.com/hashicorp/terraform-provider-tfe/pull/1169)
+* `d/tfe_organization`: Add `aggregated_commit_status_enabled` attribute, by @mjyocca [1169](https://github.com/hashicorp/terraform-provider-tfe/pull/1169)
 
 BUG FIXES:
 
@@ -320,7 +394,7 @@ BREAKING CHANGES:
 * **Removed Authentication Method**: Host-specific TF_TOKEN_... environment variable (added in 0.31.0) can no longer be used for token authentication. This method of authentication is incompatible with the Terraform Cloud remote execution model. Please use the TFE_TOKEN environment variable.
 * r/tfe_workspace: Default value of the `file_triggers_enabled` field is changed to `false`. This will align the
   `file_triggers_enabled` field default value with the default value for the same field in the
-  [TFC API](https://www.terraform.io/cloud-docs/api-docs/workspaces).
+  [Terraform Cloud API](https://www.terraform.io/cloud-docs/api-docs/workspaces).
   If the value of the `file_triggers_enabled` field was not explicitly set and either of the fields `working_directory`
   (not an empty string) or `trigger_prefixes` was used - to keep the behavior unchanged, the `file_trigger_enabled`
   field should now explicitly be set to `true`. ([#510](https://github.com/hashicorp/terraform-provider-tfe/pull/510/files))
@@ -419,7 +493,7 @@ ENHANCEMENTS:
 * r/oauth_client: Added `key`, `secret`, and `rsa_public_key` arguments, used for configuring
   BitBucket Server and Azure DevOps Server. ([#395](https://github.com/hashicorp/terraform-provider-tfe/pull/395))
 * Improved discovery and loading of credentials from Terraform configuration files; the provider
-  will attempt to use Terraform CLI's authentication with Terraform Cloud/Enterprise for its own
+  will attempt to use Terraform CLI's authentication with Terraform Cloud or Terraform Enterprise for its own
   authentication, when present. ([#360](https://github.com/hashicorp/terraform-provider-tfe/pull/360))
 
 BUG FIXES:
@@ -633,7 +707,7 @@ If you have already changed all references to this data source's `ids` attribute
 ## 0.17.1 (May 27, 2020)
 
 BUG FIXES:
-* r/tfe_team: Fixed a panic occurring with importing Owners teams on Free TFC organizations which do not include visible organization access. ([#181](https://github.com/hashicorp/terraform-provider-tfe/pull/181))
+* r/tfe_team: Fixed a panic occurring with importing Owners teams on Free Terraform Cloud organizations which do not include visible organization access. ([#181](https://github.com/hashicorp/terraform-provider-tfe/pull/181))
 
 ## 0.17.0 (May 21, 2020)
 

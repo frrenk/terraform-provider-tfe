@@ -19,6 +19,7 @@ import (
 	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
+	"github.com/hashicorp/jsonapi"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -59,6 +60,10 @@ func resourceTFEWorkspace() *schema.Resource {
 			}
 
 			if err := customizeDiffIfProviderDefaultOrganizationChanged(c, d, meta); err != nil {
+				return err
+			}
+
+			if err := customizeDiffAutoDestroyAt(c, d); err != nil {
 				return err
 			}
 
@@ -107,6 +112,19 @@ func resourceTFEWorkspace() *schema.Resource {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Default:  false,
+			},
+
+			"auto_destroy_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+				Optional: true,
+			},
+
+			"auto_destroy_activity_duration": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ConflictsWith: []string{"auto_destroy_at"},
+				ValidateFunc:  validation.StringMatch(regexp.MustCompile(`^\d{1,4}[dh]$`), "must be 1-4 digits followed by d or h"),
 			},
 
 			"execution_mode": {
@@ -207,6 +225,11 @@ func resourceTFEWorkspace() *schema.Resource {
 				Optional: true,
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+
+			"ignore_additional_tag_names": {
+				Type:     schema.TypeBool,
+				Optional: true,
 			},
 
 			"terraform_version": {
@@ -333,6 +356,18 @@ func resourceTFEWorkspaceCreate(d *schema.ResourceData, meta interface{}) error 
 			ExecutionMode: tfe.Bool(true),
 			AgentPool:     tfe.Bool(true),
 		}
+	}
+
+	if _, ok := d.GetOk("auto_destroy_at"); ok {
+		autoDestroyAt, err := expandAutoDestroyAt(d)
+		if err != nil {
+			return fmt.Errorf("Error expanding auto destroy during create: %w", err)
+		}
+		options.AutoDestroyAt = autoDestroyAt
+	}
+
+	if v, ok := d.GetOk("auto_destroy_activity_duration"); ok {
+		options.AutoDestroyActivityDuration = jsonapi.NewNullableAttrWithValue(v.(string))
 	}
 
 	if v, ok := d.GetOk("execution_mode"); ok {
@@ -528,9 +563,27 @@ func resourceTFEWorkspaceRead(d *schema.ResourceData, meta interface{}) error {
 	}
 	d.Set("agent_pool_id", agentPoolID)
 
+	autoDestroyAt, err := flattenAutoDestroyAt(workspace.AutoDestroyAt)
+	if err != nil {
+		return fmt.Errorf("Error flattening auto destroy during read: %w", err)
+	}
+	d.Set("auto_destroy_at", autoDestroyAt)
+
+	if workspace.AutoDestroyActivityDuration.IsSpecified() {
+		v, err := workspace.AutoDestroyActivityDuration.Get()
+		if err != nil {
+			return fmt.Errorf("Error reading auto destroy activity duration: %w", err)
+		}
+
+		d.Set("auto_destroy_activity_duration", v)
+	}
+
 	var tagNames []interface{}
+	managedTags := d.Get("tag_names").(*schema.Set)
 	for _, tagName := range workspace.TagNames {
-		tagNames = append(tagNames, tagName)
+		if managedTags.Contains(tagName) || !d.Get("ignore_additional_tag_names").(bool) {
+			tagNames = append(tagNames, tagName)
+		}
 	}
 	d.Set("tag_names", tagNames)
 
@@ -577,7 +630,8 @@ func resourceTFEWorkspaceUpdate(d *schema.ResourceData, meta interface{}) error 
 		d.HasChange("operations") || d.HasChange("execution_mode") ||
 		d.HasChange("description") || d.HasChange("agent_pool_id") ||
 		d.HasChange("global_remote_state") || d.HasChange("structured_run_output_enabled") ||
-		d.HasChange("assessments_enabled") || d.HasChange("project_id") {
+		d.HasChange("assessments_enabled") || d.HasChange("project_id") ||
+		hasAutoDestroyAtChange(d) || d.HasChange("auto_destroy_activity_duration") {
 		// Create a new options struct.
 		options := tfe.WorkspaceUpdateOptions{
 			Name:                       tfe.String(d.Get("name").(string)),
@@ -627,6 +681,23 @@ func resourceTFEWorkspaceUpdate(d *schema.ResourceData, meta interface{}) error 
 				options.SettingOverwrites = &tfe.WorkspaceSettingOverwritesOptions{
 					AgentPool: tfe.Bool(true),
 				}
+			}
+		}
+
+		if hasAutoDestroyAtChange(d) {
+			autoDestroyAt, err := expandAutoDestroyAt(d)
+			if err != nil {
+				return fmt.Errorf("Error expanding auto destroy during update: %w", err)
+			}
+			options.AutoDestroyAt = autoDestroyAt
+		}
+
+		if d.HasChange("auto_destroy_activity_duration") {
+			duration, ok := d.GetOk("auto_destroy_activity_duration")
+			if !ok {
+				options.AutoDestroyActivityDuration = jsonapi.NewNullNullableAttr[string]()
+			} else {
+				options.AutoDestroyActivityDuration = jsonapi.NewNullableAttrWithValue(duration.(string))
 			}
 		}
 
@@ -997,7 +1068,7 @@ func resourceTFEWorkspaceImporter(ctx context.Context, d *schema.ResourceData, m
 func errWorkspaceSafeDeleteWithPermission(workspaceID string, err error) error {
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "conflict") {
-			return fmt.Errorf("error deleting workspace %s: %w\nTo delete this workspace without destroying the managed resources, add force_delete = true to the resource config", workspaceID, err)
+			return fmt.Errorf("error deleting workspace %s: %w\nThis workspace may either have managed resources in state or has a latest state that's still being processed. Add force_delete = true to the resource config to delete this workspace", workspaceID, err)
 		}
 		return err
 	}
@@ -1010,4 +1081,65 @@ func errWorkspaceResourceCountCheck(workspaceID string, resourceCount int) error
 			"error deleting workspace %s: This workspace has %v resources under management and must be force deleted by setting force_delete = true", workspaceID, resourceCount)
 	}
 	return nil
+}
+
+func customizeDiffAutoDestroyAt(_ context.Context, d *schema.ResourceDiff) error {
+	config := d.GetRawConfig()
+
+	// check if auto_destroy_activity_duration is set in config
+	if !config.GetAttr("auto_destroy_activity_duration").IsNull() {
+		return nil
+	}
+
+	// if config auto_destroy_at is unset but it exists in state, clear it out
+	// required because auto_destroy_at is computed and we want to set it to null
+	if _, ok := d.GetOk("auto_destroy_at"); ok && config.GetAttr("auto_destroy_at").IsNull() {
+		return d.SetNew("auto_destroy_at", nil)
+	}
+
+	return nil
+}
+
+func expandAutoDestroyAt(d *schema.ResourceData) (jsonapi.NullableAttr[time.Time], error) {
+	v := d.GetRawConfig().GetAttr("auto_destroy_at")
+
+	if v.IsNull() {
+		return jsonapi.NewNullNullableAttr[time.Time](), nil
+	}
+
+	autoDestroyAt, err := time.Parse(time.RFC3339, v.AsString())
+	if err != nil {
+		return nil, err
+	}
+
+	return jsonapi.NewNullableAttrWithValue(autoDestroyAt), nil
+}
+
+func flattenAutoDestroyAt(a jsonapi.NullableAttr[time.Time]) (*string, error) {
+	if !a.IsSpecified() {
+		return nil, nil
+	}
+
+	autoDestroyTime, err := a.Get()
+	if err != nil {
+		return nil, err
+	}
+
+	autoDestroyAt := autoDestroyTime.Format(time.RFC3339)
+	return &autoDestroyAt, nil
+}
+
+func hasAutoDestroyAtChange(d *schema.ResourceData) bool {
+	state := d.GetRawState()
+	if state.IsNull() {
+		return d.HasChange("auto_destroy_at")
+	}
+
+	config := d.GetRawConfig()
+	autoDestroyAt := config.GetAttr("auto_destroy_at")
+	if !autoDestroyAt.IsNull() {
+		return d.HasChange("auto_destroy_at")
+	}
+
+	return config.GetAttr("auto_destroy_at") != state.GetAttr("auto_destroy_at")
 }
